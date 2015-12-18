@@ -19,14 +19,14 @@ import at.coro.run.Main;
 
 public class Server implements Runnable {
 
-	private Socket clientSocket;
-	private ObjectOutputStream oos;
-	private ObjectInputStream ois;
+	protected Socket clientSocket;
+	protected ObjectOutputStream oos;
+	protected ObjectInputStream ois;
 
-	private ADEC cryptoEngine;
-	private PublicKey clientPublicKey;
+	protected ADEC cryptoEngine;
+	protected PublicKey clientPublicKey;
 
-	private String username = "user_" + Math.round(Math.random() * 1000);
+	protected String username = "user_" + Math.round(Math.random() * 1000);
 
 	public Server(Socket socket) throws IOException {
 		System.out
@@ -35,6 +35,10 @@ public class Server implements Runnable {
 		this.clientSocket = socket;
 		this.oos = new ObjectOutputStream(this.clientSocket.getOutputStream());
 		this.ois = new ObjectInputStream(this.clientSocket.getInputStream());
+	}
+
+	public String getUsername() {
+		return this.username;
 	}
 
 	public void sendMessage(Object message) throws IOException {
@@ -80,8 +84,9 @@ public class Server implements Runnable {
 			try {
 
 				clientMessage = cryptoEngine.decryptString((byte[]) listen());
-				System.out.println(clientMessage);
-
+				System.out.println(username + "("
+						+ this.clientSocket.getRemoteSocketAddress() + "): "
+						+ clientMessage);
 				if (clientMessage.toUpperCase().startsWith("/BRD")) {
 					mainThread.broadcastMessage("<"
 							+ this.username
@@ -90,8 +95,28 @@ public class Server implements Runnable {
 									clientMessage.indexOf(" ") + 1,
 									clientMessage.length()));
 				} else if (clientMessage.toUpperCase().startsWith("/CHUSR")) {
-					this.username = clientMessage.split(" ")[1];
-					sendEncryptedMessage("NEW USERNAME: " + username);
+					String user = clientMessage.split(" ")[1];
+					if (!mainThread.userExists(user)
+							&& !user.equalsIgnoreCase("SERVER")) {
+						mainThread.broadcastMessage("<SERVER>: USER "
+								+ this.username
+								+ " IS NOW KNOWN UNDER THE NAME " + user);
+						this.username = user;
+					} else {
+						sendEncryptedMessage("<SERVER>: USERNAME " + user
+								+ " IS ALREADY TAKEN, CHOOSE ANOTHER ONE!");
+					}
+				} else if (clientMessage.toUpperCase().startsWith("/COUNT")) {
+					sendEncryptedMessage("<SERVER>: " + mainThread.userCount());
+				} else if (clientMessage.toUpperCase().startsWith("/SAY")) {
+					String recipient = clientMessage.split(" ")[1];
+					String messageBody = "<"
+							+ this.username
+							+ ">: "
+							+ clientMessage.substring(
+									clientMessage.indexOf(recipient) + 1,
+									clientMessage.length());
+					mainThread.directMessage(recipient, messageBody);
 				}
 
 			} catch (ClassNotFoundException | IOException | InvalidKeyException
@@ -104,7 +129,7 @@ public class Server implements Runnable {
 
 		} while (!this.clientSocket.isClosed());
 		// Cleanup
-		System.out.println("CLEANING");
+		// System.out.println("CLEANING");
 		try {
 			this.ois.close();
 			this.oos.close();
@@ -112,7 +137,7 @@ public class Server implements Runnable {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			System.err
-					.println("Something went wrong while cleaning! We're fine though!");
+					.println("Something went wrong while cleaning up! We're still fine though!");
 		}
 		System.out.println("User Disconnected.");
 		return;

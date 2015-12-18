@@ -20,7 +20,7 @@ import at.coro.utils.ConfigManager;
 
 public class Main {
 
-	public static final String version = "0.1a";
+	public static final String version = "0.5b";
 	private static final String configPath = "config.ini";
 
 	Properties configuration = null;
@@ -105,8 +105,9 @@ public class Main {
 				showCommands();
 			} else if (command.toUpperCase().startsWith("/BRD")) {
 				try {
-					broadcastMessage("<SERVER>: " + command.substring(
-							command.indexOf(" ") + 1, command.length()));
+					broadcastMessage("<SERVER>: "
+							+ command.substring(command.indexOf(" ") + 1,
+									command.length()));
 				} catch (IOException | InvalidKeyException
 						| IllegalBlockSizeException | BadPaddingException
 						| NoSuchAlgorithmException | NoSuchPaddingException e) {
@@ -126,6 +127,25 @@ public class Main {
 		return Main.clientThreads.size();
 	}
 
+	public boolean userExists(String username) {
+		for (int i = 0; i < Main.clientThreads.size(); i++) {
+			if (((Server) Main.clientThreads.get(i)[0]).getUsername()
+					.equalsIgnoreCase(username)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public String[] getUsers() {
+		ArrayList<String> userList = new ArrayList<String>();
+		for (int i = 0; i < Main.clientThreads.size(); i++) {
+			userList.add(((Server) Main.clientThreads.get(i)[0]).getUsername());
+		}
+		return (String[]) userList.toArray();
+
+	}
+
 	public void broadcastMessage(String message) throws IOException,
 			InvalidKeyException, IllegalBlockSizeException,
 			BadPaddingException, NoSuchAlgorithmException,
@@ -133,6 +153,19 @@ public class Main {
 		for (int i = 0; i < Main.clientThreads.size(); i++) {
 			((Server) Main.clientThreads.get(i)[0])
 					.sendEncryptedMessage(message);
+		}
+	}
+
+	public void directMessage(String username, String message)
+			throws InvalidKeyException, IllegalBlockSizeException,
+			BadPaddingException, NoSuchAlgorithmException,
+			NoSuchPaddingException, IOException {
+		for (int i = 0; i < Main.clientThreads.size(); i++) {
+			if (((Server) Main.clientThreads.get(i)[0]).getUsername()
+					.equalsIgnoreCase(username)) {
+				((Server) Main.clientThreads.get(i)[0])
+						.sendEncryptedMessage(message);
+			}
 		}
 	}
 
