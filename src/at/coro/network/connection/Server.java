@@ -98,7 +98,7 @@ public class Server implements Runnable {
 					String user = clientMessage.split(" ")[1];
 					if (!mainThread.userExists(user)
 							&& !user.equalsIgnoreCase("SERVER")) {
-						mainThread.broadcastMessage("<SERVER>: USER "
+						mainThread.broadcastMessage("<SERVER>: "
 								+ this.username
 								+ " IS NOW KNOWN UNDER THE NAME " + user);
 						this.username = user;
@@ -107,16 +107,25 @@ public class Server implements Runnable {
 								+ " IS ALREADY TAKEN, CHOOSE ANOTHER ONE!");
 					}
 				} else if (clientMessage.toUpperCase().startsWith("/COUNT")) {
-					sendEncryptedMessage("<SERVER>: " + mainThread.userCount());
+					sendEncryptedMessage("<SERVER>: USERS ONLINE: "
+							+ mainThread.userCount());
 				} else if (clientMessage.toUpperCase().startsWith("/SAY")) {
 					String recipient = clientMessage.split(" ")[1];
 					String messageBody = "<"
 							+ this.username
 							+ ">: "
 							+ clientMessage.substring(
-									clientMessage.indexOf(recipient) + 1,
+									clientMessage.indexOf(recipient)
+											+ recipient.length() + 1,
 									clientMessage.length());
 					mainThread.directMessage(recipient, messageBody);
+				} else if (clientMessage.toUpperCase().startsWith("/USERS")) {
+					String[] onlineUsers = mainThread.getUsers();
+					String userList = "| ";
+					for (int i = 0; i < onlineUsers.length; i++) {
+						userList += onlineUsers[i] + " | ";
+					}
+					sendEncryptedMessage("<SERVER>: USERS: " + userList);
 				}
 
 			} catch (ClassNotFoundException | IOException | InvalidKeyException

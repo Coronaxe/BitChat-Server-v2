@@ -20,17 +20,18 @@ import at.coro.utils.ConfigManager;
 
 public class Main {
 
-	public static final String version = "0.5b";
+	public static final String version = "0.8b";
 	private static final String configPath = "config.ini";
 
 	Properties configuration = null;
 	private static ArrayList<Object[]> clientThreads = new ArrayList<Object[]>();
 
-	private Properties configure(String configPath) throws IOException {
+	private Properties configure(String configPath, boolean skipIO)
+			throws IOException {
 
 		ConfigManager confMan = new ConfigManager(configPath);
 
-		if (confMan.configExists()) {
+		if (!skipIO && confMan.configExists()) {
 			return confMan.loadConfig();
 		} else {
 			Properties configuration = new Properties();
@@ -39,7 +40,9 @@ public class Main {
 			configuration.setProperty("Broadcast_Interval", "5000");
 			configuration.setProperty("MOTD", "Chitchat on BitChat!");
 
-			confMan.saveConfig(configuration);
+			if (!skipIO) {
+				confMan.saveConfig(configuration);
+			}
 
 			return configuration;
 		}
@@ -113,12 +116,31 @@ public class Main {
 						| NoSuchAlgorithmException | NoSuchPaddingException e) {
 					e.printStackTrace();
 				}
+			} else if (command.toUpperCase().startsWith("/INFO")) {
+				System.out.println("There are currently " + userCount()
+						+ " users online;");
+				String[] onlineUsers = getUsers();
+				System.out.print("| ");
+				for (int i = 0; i < onlineUsers.length; i++) {
+					System.out.print(onlineUsers[i] + " | ");
+				}
+				System.out.println();
+			} else if (command.toUpperCase().startsWith("/MOTD")) {
+				System.out.println("To be implemented");
+			} else {
+				System.err
+						.println("No such command! Type /help for a list of available commands!");
 			}
 		}
 	}
 
-	private static void showCommands() {
-
+	private void showCommands() {
+		System.out.println("------------------------------------------------");
+		System.out.println("/help : Shows this list.");
+		System.out.println("/quit : Quits the server.");
+		System.out.println("/info : Lists user count and usernames");
+		System.out.println("/brd [Message] : Broadcasts message to all users");
+		System.out.println("------------------------------------------------");
 	}
 
 	// PUBLIC METHODS BELOW!
@@ -138,11 +160,12 @@ public class Main {
 	}
 
 	public String[] getUsers() {
-		ArrayList<String> userList = new ArrayList<String>();
+		String[] userList = new String[Main.clientThreads.size()];
 		for (int i = 0; i < Main.clientThreads.size(); i++) {
-			userList.add(((Server) Main.clientThreads.get(i)[0]).getUsername());
+			userList[i] = (((Server) Main.clientThreads.get(i)[0])
+					.getUsername());
 		}
-		return (String[]) userList.toArray();
+		return userList;
 
 	}
 
@@ -178,9 +201,18 @@ public class Main {
 		System.out.println("Loading configuration...");
 
 		try {
-			mainThread.configuration = mainThread.configure(configPath);
-		} catch (IOException e) {
-			e.printStackTrace();
+			mainThread.configuration = mainThread.configure(configPath, false);
+		} catch (IOException ioEx) {
+			System.err
+					.println("Could not Write config, Probably due to a Read-Only File System. Skipping IO-Section...");
+			try {
+				mainThread.configuration = mainThread.configure(configPath,
+						true);
+			} catch (IOException fallbackError) {
+				System.err
+						.println("Fatal Error occurred in fallback mode, giving up...");
+				System.exit(0);
+			}
 		}
 
 		System.out.println("Starting UDP Broadcast...");
