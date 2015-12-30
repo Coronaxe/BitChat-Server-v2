@@ -21,7 +21,9 @@ import at.coro.utils.ConfigManager;
 
 public class Main {
 
-	public final String version = "0.85";
+	private final String version_number = "0.85";
+	private final String version_addition = "Beta";
+	public final String version = version_number + " " + version_addition;
 	private static final String configPath = "config.ini";
 
 	Properties configuration = null;
@@ -39,7 +41,7 @@ public class Main {
 			configuration.setProperty("Server_Socket_Port", "6988");
 			configuration.setProperty("Broadcast_Interval", "5000");
 			configuration.setProperty("MOTD", "Chitchat on BitChat!");
-			configuration.setProperty("Version", this.version);
+			configuration.setProperty("Version", this.version_number);
 			configuration.setProperty("DDoSProtection", "true");
 			configuration.setProperty("DDoSProtection_Cutoff", "5");
 			configuration.setProperty("Password", "");
@@ -94,7 +96,7 @@ public class Main {
 		}
 	}
 
-	private boolean ddosProtection(SocketAddress address) {
+	private boolean ddosProtection(SocketAddress address, int cutOff) {
 		int counter = 0;
 
 		for (int i = 0; i < clientThreads.size(); i++) {
@@ -102,7 +104,7 @@ public class Main {
 					.equals(address.toString().split(":")[0])) {
 				counter++;
 			}
-			if (counter >= Integer.parseInt(this.configuration.getProperty("DDoSProtection_Cutoff"))) {
+			if (counter >= cutOff) {
 				return true;
 			}
 		}
@@ -138,7 +140,7 @@ public class Main {
 	private void inputHandler() {
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
-			System.out.print(">");
+			// System.out.print(">");
 			String command = null;
 			try {
 				command = br.readLine();
@@ -241,13 +243,13 @@ public class Main {
 
 		Main mainThread = new Main();
 
-		System.out.println("Starting Server...");
+		System.out.println("Starting Server version " + mainThread.version);
 		System.out.println("Loading configuration...");
 
 		try {
 			mainThread.configuration = mainThread.configure(configPath, false, false);
 			if (Double.parseDouble(mainThread.configuration.getProperty("Version")) < Double
-					.parseDouble(mainThread.version)) {
+					.parseDouble(mainThread.version_number)) {
 				System.out.println("Version change detected, rewriting config...");
 				mainThread.configuration = mainThread.configure(configPath, false, true);
 			}
@@ -316,7 +318,7 @@ public class Main {
 		lifeGuardThread.setDaemon(true);
 		lifeGuardThread.start();
 
-		// System.out.println("Startup complete!");
+		System.out.println("Startup complete, waiting for input;");
 
 		ServerSocket serverSocket = null;
 		try {
@@ -332,7 +334,8 @@ public class Main {
 			try {
 				clientSocket = serverSocket.accept();
 				System.out.println(clientSocket.getRemoteSocketAddress());
-				if (mainThread.ddosProtection(clientSocket.getRemoteSocketAddress())) {
+				if (mainThread.ddosProtection(clientSocket.getRemoteSocketAddress(),
+						Integer.parseInt(mainThread.configuration.getProperty("DDoSProtection_Cutoff")))) {
 					clientSocket.close();
 				} else {
 					Object[] client = new Object[3];
