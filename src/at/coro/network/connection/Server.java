@@ -32,6 +32,8 @@ public class Server implements Runnable {
 	protected final int uuid = (int) Math.round(Math.random() * 10000000);
 	protected String ipAddress = "";
 	protected String password = "";
+	protected boolean encrypt = false;
+	// private int verboseLevel = 1;
 
 	public Server(Socket socket, String password) throws IOException {
 		System.out.println("--------------------\nNew incoming client connection!\nAddress is: "
@@ -44,8 +46,23 @@ public class Server implements Runnable {
 		this.ois = new ObjectInputStream(this.clientSocket.getInputStream());
 	}
 
+	public Server(Socket socket, String password, boolean encrypt) throws IOException {
+		System.out.println("--------------------\nNew incoming client connection!\nAddress is: "
+				+ socket.getRemoteSocketAddress());
+		System.out.println("Username is: " + this.username);
+		this.ipAddress = socket.getRemoteSocketAddress().toString();
+		this.encrypt = encrypt;
+		this.password = password;
+		this.clientSocket = socket;
+		this.oos = new ObjectOutputStream(this.clientSocket.getOutputStream());
+		this.ois = new ObjectInputStream(this.clientSocket.getInputStream());
+	}
+
+	// public void setVerboseLevel(int verboseLevel){
+	// this.verboseLevel= verboseLevel;
+	// }
+
 	public void disconnect() throws IOException {
-		// sendEncryptedMessage("");
 		this.clientSocket.close();
 		return;
 	}
@@ -166,14 +183,11 @@ public class Server implements Runnable {
 			}
 
 		} while (!this.clientSocket.isClosed());
-		// Cleanup
-		// System.out.println("CLEANING");
 		try {
 			this.ois.close();
 			this.oos.close();
 			this.clientSocket.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			System.err.println("Something went wrong while cleaning up! We're still fine though!");
 		}
 		System.out.println("User " + this.username + " Disconnected.");

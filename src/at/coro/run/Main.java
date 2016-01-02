@@ -21,7 +21,7 @@ import at.coro.utils.ConfigManager;
 
 public class Main {
 
-	private final String version_number = "0.85";
+	private final String version_number = "0.87";
 	private final String version_addition = "Beta";
 	public final String version = version_number + " " + version_addition;
 	private static final String configPath = "config.ini";
@@ -44,6 +44,7 @@ public class Main {
 			configuration.setProperty("Version", this.version_number);
 			configuration.setProperty("DDoSProtection", "true");
 			configuration.setProperty("DDoSProtection_Cutoff", "5");
+			configuration.setProperty("Encryption", "true");
 			configuration.setProperty("Password", "");
 
 			if (!skipIO) {
@@ -85,11 +86,9 @@ public class Main {
 	}
 
 	private void lifeGuard() {
-		// System.out.println(clientThreads.size());
 		for (int i = 0; i < Main.clientThreads.size(); i++) {
 			if (!((Thread) Main.clientThreads.get(i)[1]).isAlive()) {
 				System.out.println("Thread " + i + " dead!\nDisposing...");
-				// ((Thread) clientThreads.get(i)[1]).stop();
 				Main.clientThreads.remove(i);
 				System.out.println("Active Threads: " + Main.clientThreads.size());
 			}
@@ -188,6 +187,7 @@ public class Main {
 	}
 
 	private void showCommands() {
+		System.out.println("Commands:");
 		System.out.println("------------------------------------------------");
 		System.out.println("/help : Shows this list.");
 		System.out.println("/quit : Quits the server.");
@@ -273,7 +273,9 @@ public class Main {
 			password = false;
 		}
 		Thread udpBroadcastThread = udpBroadcast(
-				"BITCHAT_UDP_DISCOVER:PASSWORD=" + password + ":" + mainThread.configuration.getProperty("MOTD"),
+				"BITCHAT_UDP_DISCOVER:PASSWORD=" + password + ":ENCRYPTION="
+						+ mainThread.configuration.getProperty("Encryption") + ":MOTD="
+						+ mainThread.configuration.getProperty("MOTD"),
 				Integer.parseInt(mainThread.configuration.getProperty("Broadcast_Interval")),
 				Integer.parseInt(mainThread.configuration.getProperty("UDP_Broadcast_Port")));
 		// Sets Thread as a daemon, exits when Main Thread exits.
@@ -319,6 +321,7 @@ public class Main {
 		lifeGuardThread.start();
 
 		System.out.println("Startup complete, waiting for input;");
+		mainThread.showCommands();
 
 		ServerSocket serverSocket = null;
 		try {
@@ -333,13 +336,14 @@ public class Main {
 		while (true) {
 			try {
 				clientSocket = serverSocket.accept();
-				System.out.println(clientSocket.getRemoteSocketAddress());
+				// System.out.println(clientSocket.getRemoteSocketAddress());
 				if (mainThread.ddosProtection(clientSocket.getRemoteSocketAddress(),
 						Integer.parseInt(mainThread.configuration.getProperty("DDoSProtection_Cutoff")))) {
 					clientSocket.close();
 				} else {
 					Object[] client = new Object[3];
-					client[0] = new Server(clientSocket, mainThread.configuration.getProperty("Password"));
+					client[0] = new Server(clientSocket, mainThread.configuration.getProperty("Password"),
+							Boolean.parseBoolean(mainThread.configuration.getProperty("Encrypt")));
 					client[1] = new Thread((Runnable) client[0]);
 					client[2] = (SocketAddress) clientSocket.getRemoteSocketAddress();
 					Main.clientThreads.add(client);
