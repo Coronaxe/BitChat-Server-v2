@@ -71,13 +71,13 @@ public class Server implements Runnable {
 		return this.username;
 	}
 
-	public void sendMessage(Object message) throws IOException {
-		this.oos.writeObject(message);
-	}
-
-	public void sendEncryptedMessage(Object message) throws InvalidKeyException, IllegalBlockSizeException,
-			BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, IOException {
-		this.oos.writeObject(cryptoEngine.encryptString(clientPublicKey, message.toString()));
+	public void sendMessage(Object message, boolean encrypt) throws IOException, InvalidKeyException,
+			IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException {
+		if (encrypt) {
+			this.oos.writeObject(cryptoEngine.encryptData(message,clientPublicKey));
+		} else {
+			this.oos.writeObject(message);
+		}
 	}
 
 	public Object listen() throws ClassNotFoundException, IOException {
@@ -95,23 +95,26 @@ public class Server implements Runnable {
 	public void run() {
 		Main mainThread = new Main();
 		try {
-			System.out.println("Generating keys...");
-			cryptoEngine = new ADEC(2048);
-			System.out.println("Done!");
-			// Exchanging keys
-			System.out.println("Waiting for Public Key...");
-			clientPublicKey = (PublicKey) listen(5000);
-			System.out.println("Sending Public Key...");
-			sendMessage(cryptoEngine.publicKey());
-			//
+			if (this.encrypt) {
+				System.out.println("Generating keys...");
+				cryptoEngine = new ADEC();
+				cryptoEngine.generateAsymmetricKeyPair(2048);
+				System.out.println("Done!");
+				// Exchanging keys
+				System.out.println("Waiting for Public Key...");
+				clientPublicKey = (PublicKey) listen(5000);
+				System.out.println("Sending Public Key...");
+				sendMessage(cryptoEngine.getPublicKey(), false);
+				//
+			}
 			if (!this.password.isEmpty()) {
 				System.out.println("Requesting password...");
-				if (!this.password.equals(cryptoEngine.decryptString((byte[]) listen(10000)))) {
+				if (!this.password.equals(cryptoEngine.decryptData((byte[]) listen(10000)))) {
 					throw new Exception("WRONG_PASSWORD");
 				}
 			}
 			System.out.println("Success!\n--------------------");
-			sendEncryptedMessage(this.serverInfo + "CORRECT_PASSWORD");
+			sendMessage(this.serverInfo + "CORRECT_PASSWORD", this.encrypt);
 			mainThread.broadcastMessage(this.serverAnnounce + ": A NEW USER JOINED THE FUN: " + this.username);
 		} catch (IOException ioex) {
 			System.err.println("IO Error occurred! Maybe there was a timeout!");
@@ -125,7 +128,7 @@ public class Server implements Runnable {
 			if (ex.getMessage().equals("WRONG_PASSWORD")) {
 				System.err.println("Wrong Password!");
 				try {
-					sendEncryptedMessage(this.serverInfo + "WRONG_PASSWORD");
+					sendMessage(this.serverInfo + "WRONG_PASSWORD", this.encrypt);
 				} catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException
 						| NoSuchAlgorithmException | NoSuchPaddingException | IOException e) {
 					e.printStackTrace();
@@ -139,11 +142,11 @@ public class Server implements Runnable {
 			String clientMessage = null;
 			try {
 
-				clientMessage = cryptoEngine.decryptString((byte[]) listen());
+				clientMessage = (String) cryptoEngine.decryptData((byte[]) listen());
 				System.out.println(username + "(" + this.clientSocket.getRemoteSocketAddress() + "): " + clientMessage);
 				if (clientMessage.toUpperCase().startsWith("/HELP")) {
 					String commands = "/count : Returns count of users online\n/chusr [username] : Changes your current username to the specified one\n/users : Returns the usernames currently logged in";
-					sendEncryptedMessage(this.serverAnnounce + ": COMMAND LIST:\n" + commands);
+					sendMessage(this.serverAnnounce + ": COMMAND LIST:\n" + commands, this.encrypt);
 				} else if (clientMessage.toUpperCase().startsWith("/BRD")
 						&& !clientMessage.substring(clientMessage.indexOf(" ") + 1, clientMessage.length()).isEmpty()) {
 					mainThread.broadcastMessage("<" + this.username + ">: "
@@ -156,11 +159,12 @@ public class Server implements Runnable {
 								this.serverAnnounce + ": " + this.username + " IS NOW KNOWN UNDER THE NAME " + user);
 						this.username = user;
 					} else {
-						sendEncryptedMessage(
-								this.serverAnnounce + ": USERNAME " + user + " IS ALREADY TAKEN, CHOOSE ANOTHER ONE!");
+						sendMessage(
+								this.serverAnnounce + ": USERNAME " + user + " IS ALREADY TAKEN, CHOOSE ANOTHER ONE!",
+								this.encrypt);
 					}
 				} else if (clientMessage.toUpperCase().startsWith("/COUNT")) {
-					sendEncryptedMessage(this.serverAnnounce + ": USERS ONLINE: " + mainThread.userCount());
+					sendMessage(this.serverAnnounce + ": USERS ONLINE: " + mainThread.userCount(), this.encrypt);
 				} else if (clientMessage.toUpperCase().startsWith("/SAY")) {
 					String recipient = clientMessage.split(" ")[1];
 					String messageBody = "<" + this.username + ">: " + clientMessage.substring(
@@ -172,7 +176,7 @@ public class Server implements Runnable {
 					for (int i = 0; i < onlineUsers.length; i++) {
 						userList += onlineUsers[i] + " | ";
 					}
-					sendEncryptedMessage(this.serverAnnounce + ": USERS: " + userList);
+					sendMessage(this.serverAnnounce + ": USERS: " + userList, this.encrypt);
 				}
 
 			} catch (ClassNotFoundException | IOException | InvalidKeyException | NoSuchAlgorithmException

@@ -16,7 +16,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
 import at.coro.network.connection.Server;
-import at.coro.network.udp.discover.UDPDiscovery;
+import at.coro.network.udp.UDPDiscovery;
 import at.coro.utils.ConfigManager;
 
 public class Main {
@@ -163,7 +163,10 @@ public class Main {
 						| NoSuchAlgorithmException | NoSuchPaddingException e) {
 					e.printStackTrace();
 				}
+			} else if (command.toUpperCase().startsWith("/CONFIG")) {
+				this.configuration.list(System.out);
 			} else if (command.toUpperCase().startsWith("/INFO")) {
+
 				System.out.println("There are currently " + userCount() + " users online;");
 				String[] onlineUsers = getUsers();
 				System.out.print("| ");
@@ -191,6 +194,7 @@ public class Main {
 		System.out.println("------------------------------------------------");
 		System.out.println("/help : Shows this list.");
 		System.out.println("/quit : Quits the server.");
+		System.out.println("/config : Lists the current configuration");
 		System.out.println("/info : Lists user count and usernames");
 		System.out.println("/brd [Message] : Broadcasts message to all users");
 		System.out.println(
@@ -225,7 +229,8 @@ public class Main {
 	public void broadcastMessage(String message) throws IOException, InvalidKeyException, IllegalBlockSizeException,
 			BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException {
 		for (int i = 0; i < Main.clientThreads.size(); i++) {
-			((Server) Main.clientThreads.get(i)[0]).sendEncryptedMessage(message);
+			((Server) Main.clientThreads.get(i)[0]).sendMessage(message,
+					Boolean.parseBoolean(this.configuration.getProperty("Encryption")));
 		}
 	}
 
@@ -233,7 +238,8 @@ public class Main {
 			BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, IOException {
 		for (int i = 0; i < Main.clientThreads.size(); i++) {
 			if (((Server) Main.clientThreads.get(i)[0]).getUsername().equalsIgnoreCase(username)) {
-				((Server) Main.clientThreads.get(i)[0]).sendEncryptedMessage(message);
+				((Server) Main.clientThreads.get(i)[0]).sendMessage(message,
+						Boolean.parseBoolean(this.configuration.getProperty("Encryption")));
 			}
 		}
 	}
@@ -263,11 +269,11 @@ public class Main {
 				System.exit(0);
 			}
 		}
-		mainThread.configuration.list(System.out);
+		// mainThread.configuration.list(System.out);
 
 		System.out.println("Starting UDP Broadcast Thread...");
 		// Sets up a Thread to broadcast the server announce message over UDP
-		// (Port 2920).
+		// (Default Port 2920).
 		boolean password = true;
 		if (mainThread.configuration.getProperty("Password").isEmpty()) {
 			password = false;
@@ -343,7 +349,7 @@ public class Main {
 				} else {
 					Object[] client = new Object[3];
 					client[0] = new Server(clientSocket, mainThread.configuration.getProperty("Password"),
-							Boolean.parseBoolean(mainThread.configuration.getProperty("Encrypt")));
+							Boolean.parseBoolean(mainThread.configuration.getProperty("Encryption")));
 					client[1] = new Thread((Runnable) client[0]);
 					client[2] = (SocketAddress) clientSocket.getRemoteSocketAddress();
 					Main.clientThreads.add(client);
